@@ -7,6 +7,9 @@ import {
   getCustomActivities,
   saveCustomActivities
 } from '../data.js'
+import Dropdown from '../components/Dropdown.jsx'
+import { useNavigate } from 'react-router-dom'
+import Modal from '../components/Modal.jsx'
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024
 const MAX_STORED_IMAGE_BYTES = 650 * 1024
@@ -87,7 +90,7 @@ function slugify(value) {
 
 export default function Administracion() {
   const { sesion } = useAuth()
-
+  const navigate = useNavigate()
   const [customActivities, setCustomActivities] = useState(
     () => getCustomActivities()
   )
@@ -100,7 +103,7 @@ export default function Administracion() {
   const [preview, setPreview] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
-
+  const [actividadPendienteEliminar, setActividadPendienteEliminar] = useState(null)
   const allActivities = getActivities()
 
   async function handleImageChange(event) {
@@ -392,13 +395,18 @@ export default function Administracion() {
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  className="button button-outline admin-delete-button"
-                  onClick={() => removeActivity(item.id)}
-                >
-                  Eliminar
-                </button>
+                <Dropdown
+                  opciones={['Ver actividad', 'Eliminar actividad']}
+                  onSeleccionar={opcion => {
+                   if (opcion === 'Ver actividad') {
+                      navigate(`/actividades/${item.id}`)
+                        }
+
+    if (opcion === 'Eliminar actividad') {
+  setActividadPendienteEliminar(item)
+    }
+  }}
+/>
               </article>
             ))}
           </div>
@@ -408,6 +416,43 @@ export default function Administracion() {
           </div>
         )}
       </section>
+            <Modal
+        abierto={Boolean(actividadPendienteEliminar)}
+        cerrar={() => setActividadPendienteEliminar(null)}
+        titulo="Eliminar actividad"
+      >
+        <p>
+          ¿Estás segura de que deseas eliminar{' '}
+          <strong>{actividadPendienteEliminar?.name}</strong>?
+        </p>
+
+        <p className="muted">
+          Esta acción eliminará la actividad del catálogo personalizado.
+        </p>
+
+        <div className="planning-actions">
+          <button
+            type="button"
+            className="button button-outline"
+            onClick={() => setActividadPendienteEliminar(null)}
+          >
+            Cancelar
+          </button>
+
+          <button
+            type="button"
+            className="button"
+            onClick={() => {
+              if (actividadPendienteEliminar) {
+                removeActivity(actividadPendienteEliminar.id)
+                setActividadPendienteEliminar(null)
+              }
+            }}
+          >
+            Sí, eliminar
+          </button>
+        </div>
+      </Modal>
     </main>
   )
 }

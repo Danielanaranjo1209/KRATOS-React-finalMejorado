@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useFormularioContext } from '../context/FormularioContex.jsx'
 import { getActivities } from '../data.js'
 import PageTitle from '../components/PageTitle.jsx'
+import Toast from '../components/Toast.jsx' 
 
 const DIAS = [
   { value: 'lunes', label: 'Lunes' },
@@ -398,14 +399,12 @@ if (actividadRepetidaMismoDia) {
             </p>
           )}
 
-          {mensaje && (
-            <p
-              className={`planning-message ${tipoMensaje}`}
-              role="status"
-            >
-              {mensaje}
-            </p>
-          )}
+          <Toast
+  mensaje={mensaje}
+  tipo={tipoMensaje === 'error' ? 'error' : 'success'}
+  cerrar={() => setMensaje('')}
+  duracion={3000}
+/>
 
           <div className="planning-actions">
             <button className="button" type="submit">
