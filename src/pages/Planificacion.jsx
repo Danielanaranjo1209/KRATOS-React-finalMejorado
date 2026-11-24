@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useFormularioContext } from '../context/FormularioContex.jsx'
-import activities from '../data.js'
+import { getActivities } from '../data.js'
 import PageTitle from '../components/PageTitle.jsx'
 
 const DIAS = [
@@ -27,6 +27,7 @@ function horaAMinutos(hora) {
 
 export default function Planificacion() {
   const { estado, dispatch } = useFormularioContext()
+  const activities = getActivities()
   const planificacion = estado.planificacion
   const [formulario, setFormulario] = useState(formularioInicial)
   const [editandoId, setEditandoId] = useState(null)
