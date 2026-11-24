@@ -117,6 +117,7 @@ export default function Administracion() {
     try {
       saveCustomActivities(updated)
       setCustomActivities(updated)
+      window.dispatchEvent(new Event('kratos-activities-updated'))
       setName('')
       setDescription('')
       setLevel('Principiante')
@@ -136,6 +137,7 @@ export default function Administracion() {
     try {
       saveCustomActivities(updated)
       setCustomActivities(updated)
+      window.dispatchEvent(new Event('kratos-activities-updated'))
       setMessage('Actividad eliminada correctamente.')
       setError('')
     } catch {
