@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+
+import { useEffect, useMemo, useState } from 'react'
 import { useFormularioContext } from '../context/FormularioContex.jsx'
 import { getActivities } from '../data.js'
 import PageTitle from '../components/PageTitle.jsx'
@@ -12,12 +13,21 @@ const DIAS = [
   { value: 'sabado', label: 'Sábado' },
   { value: 'domingo', label: 'Domingo' }
 ]
+
 const formularioInicial = {
-  actividadId: activities[0]?.id ?? '',
+  actividadId: '',
   dia: 'lunes',
   hora: '08:00',
-  minutos: activities[0]?.minutes ?? 30,
+  minutos: 30,
   notas: ''
+}
+
+function crearFormularioInicial(activities) {
+  return {
+    ...formularioInicial,
+    actividadId: activities[0]?.id ?? '',
+    minutos: activities[0]?.minutes ?? 30
+  }
 }
 
 function horaAMinutos(hora) {
@@ -27,19 +37,59 @@ function horaAMinutos(hora) {
 
 export default function Planificacion() {
   const { estado, dispatch } = useFormularioContext()
-  const activities = getActivities()
-  const planificacion = estado.planificacion
-  const [formulario, setFormulario] = useState(formularioInicial)
+
+  const [activities, setActivities] = useState(() => getActivities())
+
+  const [formulario, setFormulario] = useState(() =>
+    crearFormularioInicial(getActivities())
+  )
+
   const [editandoId, setEditandoId] = useState(null)
   const [mensaje, setMensaje] = useState('')
   const [tipoMensaje, setTipoMensaje] = useState('')
+
+  const planificacion = estado.planificacion
+
+  useEffect(() => {
+    function actualizarActividades() {
+      const actividadesActualizadas = getActivities()
+
+      setActivities(actividadesActualizadas)
+
+      setFormulario(actual => {
+        const actividadExiste = actividadesActualizadas.some(
+          item => item.id === actual.actividadId
+        )
+
+        if (actividadExiste) return actual
+
+        return crearFormularioInicial(actividadesActualizadas)
+      })
+    }
+
+    window.addEventListener(
+      'kratos-activities-updated',
+      actualizarActividades
+    )
+
+    return () => {
+      window.removeEventListener(
+        'kratos-activities-updated',
+        actualizarActividades
+      )
+    }
+  }, [])
 
   const actividadSeleccionada = activities.find(
     actividad => actividad.id === formulario.actividadId
   )
 
   const minutosTotales = useMemo(
-    () => planificacion.reduce((total, item) => total + Number(item.minutos), 0),
+    () =>
+      planificacion.reduce(
+        (total, item) => total + Number(item.minutos),
+        0
+      ),
     [planificacion]
   )
 
@@ -48,31 +98,42 @@ export default function Planificacion() {
     setTipoMensaje(tipo)
   }
 
-  const cambiarCampo = (e) => {
-    const { name, value } = e.target
+  const cambiarCampo = event => {
+    const { name, value } = event.target
+
     setFormulario(actual => ({
       ...actual,
       [name]: value,
-      ...(name === 'actividadId' ? { minutos: activities.find(item => item.id === value)?.minutes ?? 30 } : {})
+      ...(name === 'actividadId'
+        ? {
+            minutos:
+              activities.find(item => item.id === value)?.minutes ?? 30
+          }
+        : {})
     }))
+
     setMensaje('')
   }
 
-  const guardarEntrenamiento = (e) => {
-    e.preventDefault()
+  const guardarEntrenamiento = event => {
+    event.preventDefault()
+
     const minutos = Number(formulario.minutos)
 
     if (!formulario.actividadId || !formulario.dia || !formulario.hora) {
       mostrarMensaje('Selecciona una actividad, un día y una hora.')
       return
     }
+
     if (!Number.isFinite(minutos) || minutos < 5 || minutos > 240) {
       mostrarMensaje('La duración debe estar entre 5 y 240 minutos.')
       return
     }
 
     const nuevo = {
-      id: editandoId ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id:
+        editandoId ??
+        `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       actividadId: formulario.actividadId,
       nombre: actividadSeleccionada?.name ?? 'Entrenamiento',
       nivel: actividadSeleccionada?.level ?? '',
@@ -84,28 +145,52 @@ export default function Planificacion() {
 
     const inicioNuevo = horaAMinutos(nuevo.hora)
     const finNuevo = inicioNuevo + nuevo.minutos
+
     const conflicto = planificacion.some(item => {
-      if (item.id === editandoId || item.dia !== nuevo.dia) return false
+      if (item.id === editandoId || item.dia !== nuevo.dia) {
+        return false
+      }
+
       const inicioExistente = horaAMinutos(item.hora)
       const finExistente = inicioExistente + Number(item.minutos)
-      return inicioNuevo < finExistente && inicioExistente < finNuevo
+
+      return (
+        inicioNuevo < finExistente &&
+        inicioExistente < finNuevo
+      )
     })
 
     if (conflicto) {
-      mostrarMensaje('Ya tienes otro entrenamiento en ese horario. Elige una hora diferente.')
+      mostrarMensaje(
+        'Ya tienes otro entrenamiento en ese horario. Elige una hora diferente.'
+      )
       return
     }
 
-    dispatch(editandoId
-      ? { type: 'EDITAR_ENTRENAMIENTO', entrenamiento: nuevo }
-      : { type: 'AGREGAR_ENTRENAMIENTO', entrenamiento: nuevo }
+    dispatch(
+      editandoId
+        ? {
+            type: 'EDITAR_ENTRENAMIENTO',
+            entrenamiento: nuevo
+          }
+        : {
+            type: 'AGREGAR_ENTRENAMIENTO',
+            entrenamiento: nuevo
+          }
     )
-    setFormulario(formularioInicial)
+
+    setFormulario(crearFormularioInicial(activities))
     setEditandoId(null)
-    mostrarMensaje(editandoId ? 'Entrenamiento actualizado.' : 'Entrenamiento añadido a tu planificación.', 'exito')
+
+    mostrarMensaje(
+      editandoId
+        ? 'Entrenamiento actualizado.'
+        : 'Entrenamiento añadido a tu planificación.',
+      'exito'
+    )
   }
 
-  const editarEntrenamiento = (item) => {
+  const editarEntrenamiento = item => {
     setFormulario({
       actividadId: item.actividadId,
       dia: item.dia,
@@ -113,28 +198,55 @@ export default function Planificacion() {
       minutos: item.minutos,
       notas: item.notas ?? ''
     })
+
     setEditandoId(item.id)
     setMensaje('')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    })
   }
 
   const cancelarEdicion = () => {
-    setFormulario(formularioInicial)
+    setFormulario(crearFormularioInicial(activities))
     setEditandoId(null)
     setMensaje('')
   }
 
-  const eliminarEntrenamiento = (id) => {
-    dispatch({ type: 'ELIMINAR_ENTRENAMIENTO', id })
-    if (editandoId === id) cancelarEdicion()
-    mostrarMensaje('Entrenamiento eliminado de la planificación.', 'exito')
+  const eliminarEntrenamiento = id => {
+    dispatch({
+      type: 'ELIMINAR_ENTRENAMIENTO',
+      id
+    })
+
+    if (editandoId === id) {
+      cancelarEdicion()
+    }
+
+    mostrarMensaje(
+      'Entrenamiento eliminado de la planificación.',
+      'exito'
+    )
   }
 
   const limpiarPlanificacion = () => {
-    if (planificacion.length && window.confirm('¿Quieres eliminar todos los entrenamientos de la semana?')) {
-      dispatch({ type: 'LIMPIAR_PLANIFICACION' })
+    if (
+      planificacion.length &&
+      window.confirm(
+        '¿Quieres eliminar todos los entrenamientos de la semana?'
+      )
+    ) {
+      dispatch({
+        type: 'LIMPIAR_PLANIFICACION'
+      })
+
       cancelarEdicion()
-      mostrarMensaje('La planificación semanal se ha limpiado.', 'exito')
+
+      mostrarMensaje(
+        'La planificación semanal se ha limpiado.',
+        'exito'
+      )
     }
   }
 
@@ -152,18 +264,27 @@ export default function Planificacion() {
         description="Organiza tus entrenamientos por día y hora, controla la duración y mantén tu rutina guardada."
       />
 
-      <section className="planning-summary" aria-label="Resumen de la planificación">
+      <section
+        className="planning-summary"
+        aria-label="Resumen de la planificación"
+      >
         <article className="planning-stat">
           <span>Entrenamientos programados</span>
           <strong>{planificacion.length}</strong>
         </article>
+
         <article className="planning-stat">
           <span>Tiempo semanal</span>
-          <strong>{Math.floor(minutosTotales / 60)} h {minutosTotales % 60} min</strong>
+          <strong>
+            {Math.floor(minutosTotales / 60)} h {minutosTotales % 60} min
+          </strong>
         </article>
+
         <article className="planning-stat">
           <span>Días activos</span>
-          <strong>{new Set(planificacion.map(item => item.dia)).size} de 7</strong>
+          <strong>
+            {new Set(planificacion.map(item => item.dia)).size} de 7
+          </strong>
         </article>
       </section>
 
@@ -171,58 +292,123 @@ export default function Planificacion() {
         <div className="planning-section-heading">
           <div>
             <span className="section-kicker">TU RUTINA</span>
-            <h2>{editandoId ? 'Editar entrenamiento' : 'Añadir entrenamiento'}</h2>
-            <p>Completa los datos para reservar un espacio en tu semana.</p>
+            <h2>
+              {editandoId
+                ? 'Editar entrenamiento'
+                : 'Añadir entrenamiento'}
+            </h2>
+            <p>
+              Completa los datos para reservar un espacio en tu semana.
+            </p>
           </div>
         </div>
 
-        <form className="planning-form" onSubmit={guardarEntrenamiento}>
+        <form
+          className="planning-form"
+          onSubmit={guardarEntrenamiento}
+        >
           <div className="planning-fields">
             <label>
               Actividad
-              <select name="actividadId" value={formulario.actividadId} onChange={cambiarCampo} required>
+              <select
+                name="actividadId"
+                value={formulario.actividadId}
+                onChange={cambiarCampo}
+                required
+              >
                 {activities.map(item => (
-                  <option key={item.id} value={item.id}>{item.name}</option>
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
                 ))}
               </select>
             </label>
+
             <label>
               Día de la semana
-              <select name="dia" value={formulario.dia} onChange={cambiarCampo} required>
-                {DIAS.map(dia => <option key={dia.value} value={dia.value}>{dia.label}</option>)}
+              <select
+                name="dia"
+                value={formulario.dia}
+                onChange={cambiarCampo}
+                required
+              >
+                {DIAS.map(dia => (
+                  <option key={dia.value} value={dia.value}>
+                    {dia.label}
+                  </option>
+                ))}
               </select>
             </label>
+
             <label>
               Hora de inicio
-              <input name="hora" type="time" value={formulario.hora} onChange={cambiarCampo} required />
+              <input
+                name="hora"
+                type="time"
+                value={formulario.hora}
+                onChange={cambiarCampo}
+                required
+              />
             </label>
+
             <label>
               Duración (minutos)
-              <input name="minutos" type="number" min="5" max="240" step="5" value={formulario.minutos} onChange={cambiarCampo} required />
+              <input
+                name="minutos"
+                type="number"
+                min="5"
+                max="240"
+                step="5"
+                value={formulario.minutos}
+                onChange={cambiarCampo}
+                required
+              />
             </label>
+
             <label className="planning-notes">
               Notas (opcional)
-              <textarea name="notas" rows="3" value={formulario.notas} onChange={cambiarCampo} placeholder="Ej. Llevar agua, trabajar técnica..." />
+              <textarea
+                name="notas"
+                rows="3"
+                value={formulario.notas}
+                onChange={cambiarCampo}
+                placeholder="Ej. Llevar agua, trabajar técnica..."
+              />
             </label>
           </div>
 
           {actividadSeleccionada && (
             <p className="planning-hint">
-              Nivel: <strong>{actividadSeleccionada.level}</strong> · Duración sugerida: {actividadSeleccionada.minutes} minutos.
+              Nivel: <strong>{actividadSeleccionada.level}</strong> ·
+              Duración sugerida: {actividadSeleccionada.minutes} minutos.
               Puedes ajustar la duración según tu rutina.
             </p>
           )}
 
           {mensaje && (
-            <p className={`planning-message ${tipoMensaje}`} role="status">{mensaje}</p>
+            <p
+              className={`planning-message ${tipoMensaje}`}
+              role="status"
+            >
+              {mensaje}
+            </p>
           )}
 
           <div className="planning-actions">
             <button className="button" type="submit">
-              {editandoId ? 'Guardar cambios' : 'Añadir a planificación'}
+              {editandoId
+                ? 'Guardar cambios'
+                : 'Añadir a planificación'}
             </button>
+
             {editandoId && (
-              <button className="button button-outline" type="button" onClick={cancelarEdicion}>Cancelar edición</button>
+              <button
+                className="button button-outline"
+                type="button"
+                onClick={cancelarEdicion}
+              >
+                Cancelar edición
+              </button>
             )}
           </div>
         </form>
@@ -234,8 +420,13 @@ export default function Planificacion() {
             <span className="section-kicker">VISTA SEMANAL</span>
             <h2>Mi semana de entrenamiento</h2>
           </div>
+
           {planificacion.length > 0 && (
-            <button className="button button-outline" type="button" onClick={limpiarPlanificacion}>
+            <button
+              className="button button-outline"
+              type="button"
+              onClick={limpiarPlanificacion}
+            >
               Limpiar semana
             </button>
           )}
@@ -244,7 +435,10 @@ export default function Planificacion() {
         {planificacion.length === 0 ? (
           <div className="planning-empty">
             <h3>Tu semana está lista para organizarse</h3>
-            <p>Añade tu primer entrenamiento usando el formulario. Aquí aparecerá el día, la hora y la duración que elijas.</p>
+            <p>
+              Añade tu primer entrenamiento usando el formulario.
+              Aquí aparecerá el día, la hora y la duración que elijas.
+            </p>
           </div>
         ) : (
           <div className="weekly-grid">
@@ -254,25 +448,58 @@ export default function Planificacion() {
                   <h3>{dia.label}</h3>
                   <span>{dia.entrenamientos.length}</span>
                 </header>
+
                 {dia.entrenamientos.length === 0 ? (
                   <p className="day-empty">Sin entrenamientos</p>
-                ) : dia.entrenamientos.map(item => (
-                  <article className="planned-training" key={item.id}>
-                    <span className="planned-time">{item.hora}</span>
-                    <h4>{item.nombre}</h4>
-                    <p>{item.minutos} minutos · {item.nivel}</p>
-                    {item.notas && <p className="planned-notes">{item.notas}</p>}
-                    <div className="planned-actions">
-                      <button type="button" onClick={() => editarEntrenamiento(item)}>Editar</button>
-                      <button type="button" onClick={() => eliminarEntrenamiento(item.id)}>Eliminar</button>
-                    </div>
-                  </article>
-                ))}
+                ) : (
+                  dia.entrenamientos.map(item => (
+                    <article
+                      className="planned-training"
+                      key={item.id}
+                    >
+                      <span className="planned-time">
+                        {item.hora}
+                      </span>
+
+                      <h4>{item.nombre}</h4>
+
+                      <p>
+                        {item.minutos} minutos · {item.nivel}
+                      </p>
+
+                      {item.notas && (
+                        <p className="planned-notes">
+                          {item.notas}
+                        </p>
+                      )}
+
+                      <div className="planned-actions">
+                        <button
+                          type="button"
+                          onClick={() => editarEntrenamiento(item)}
+                        >
+                          Editar
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => eliminarEntrenamiento(item.id)}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </article>
+                  ))
+                )}
               </section>
             ))}
           </div>
         )}
-        <p className="storage-note">Tu planificación se guarda en este navegador y se conserva al recargar la página.</p>
+
+        <p className="storage-note">
+          Tu planificación se guarda en este navegador y se conserva al
+          recargar la página.
+        </p>
       </section>
     </main>
   )
