@@ -129,7 +129,20 @@ export default function Planificacion() {
       mostrarMensaje('La duración debe estar entre 5 y 240 minutos.')
       return
     }
+    // Evitar repetir la misma actividad el mismo día
+const actividadRepetidaMismoDia = planificacion.some(
+  item =>
+    item.actividadId === formulario.actividadId &&
+    item.dia === formulario.dia &&
+    item.id !== editandoId
+)
 
+if (actividadRepetidaMismoDia) {
+  mostrarMensaje(
+    'Ya tienes esta actividad programada para ese día. Elige otro día.'
+  )
+  return
+}
     const nuevo = {
       id:
         editandoId ??
