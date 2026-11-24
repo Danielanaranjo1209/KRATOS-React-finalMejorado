@@ -52,23 +52,53 @@ const activities = [
 
 export const CUSTOM_ACTIVITIES_KEY = 'kratos-actividades-personalizadas'
 
+export function normalizeActivityName(name) {
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+}
+
 export function getActivities() {
-  try {
-    const custom = JSON.parse(localStorage.getItem(CUSTOM_ACTIVITIES_KEY) || '[]')
-    return [...activities, ...(Array.isArray(custom) ? custom : [])]
-  } catch {
-    return [...activities]
-  }
+  return [...activities, ...getCustomActivities()]
 }
 
 export function saveCustomActivities(items) {
-  localStorage.setItem(CUSTOM_ACTIVITIES_KEY, JSON.stringify(items))
+  localStorage.setItem(
+    CUSTOM_ACTIVITIES_KEY,
+    JSON.stringify(items)
+  )
 }
 
 export function getCustomActivities() {
   try {
-    const items = JSON.parse(localStorage.getItem(CUSTOM_ACTIVITIES_KEY) || '[]')
-    return Array.isArray(items) ? items : []
+    const items = JSON.parse(
+      localStorage.getItem(CUSTOM_ACTIVITIES_KEY) || '[]'
+    )
+
+    if (!Array.isArray(items)) return []
+
+    const nombres = new Set()
+
+    const unicas = items.filter(item => {
+      const nombre = normalizeActivityName(item.name)
+
+      if (!nombre || nombres.has(nombre)) {
+        return false
+      }
+
+      nombres.add(nombre)
+      return true
+    })
+
+    // Guardar la lista limpia si había duplicados
+    if (unicas.length !== items.length) {
+      saveCustomActivities(unicas)
+    }
+
+    return unicas
   } catch {
     return []
   }
