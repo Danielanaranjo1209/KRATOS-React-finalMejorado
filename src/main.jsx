@@ -1,0 +1,8 @@
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
+import App from './App.jsx'
+import { FormularioProvider } from './context/FormularioContex.jsx'
+import { AuthProvider } from './context/AuthContext.jsx'
+import './styles.css'
+ReactDOM.createRoot(document.getElementById('root')).render(<AuthProvider><FormularioProvider><BrowserRouter><App/></BrowserRouter></FormularioProvider></AuthProvider>)
