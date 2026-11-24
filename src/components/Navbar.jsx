@@ -1,3 +1,70 @@
+
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
-export default function Navbar(){const {sesion,cerrarSesion}=useAuth();const navigate=useNavigate();const salir=()=>{cerrarSesion();navigate('/')};return <header className="navbar"><Link className="brand" to="/">KRATOS<span>.</span></Link><nav><NavLink className="nav-link" to="/" end>Inicio</NavLink><NavLink className="nav-link" to="/actividades">Actividades</NavLink><NavLink className="nav-link" to="/componentes">Componentes</NavLink>{sesion&&<><NavLink className="nav-link" to="/planificacion">Planificación</NavLink><NavLink className="nav-link" to="/contacto">Contacto</NavLink>{sesion.rol==='administrador'&&<NavLink className="nav-link" to="/admin">Administración</NavLink>}</>}</nav><div className="nav-session">{sesion?<><span>{sesion.nombre} · {sesion.rol}</span><button className="button button-outline nav-button" onClick={salir}>Salir</button></>:<Link className="button nav-button" to="/login">Iniciar sesión</Link>}</div></header>}
+
+export default function Navbar() {
+  const { sesion, cerrarSesion } = useAuth()
+  const navigate = useNavigate()
+
+  const salir = () => {
+    cerrarSesion()
+    navigate('/')
+  }
+
+  return (
+    <header className="navbar">
+      <Link className="brand" to="/">
+        KRATOS<span>.</span>
+      </Link>
+
+      <nav>
+        <NavLink className="nav-link" to="/" end>
+          Inicio
+        </NavLink>
+
+        <NavLink className="nav-link" to="/actividades">
+          Actividades
+        </NavLink>
+
+        {sesion && (
+          <>
+            <NavLink className="nav-link" to="/planificacion">
+              Planificación
+            </NavLink>
+
+            <NavLink className="nav-link" to="/contacto">
+              Contacto
+            </NavLink>
+
+            {sesion.rol === 'administrador' && (
+              <NavLink className="nav-link" to="/admin">
+                Administración
+              </NavLink>
+            )}
+          </>
+        )}
+      </nav>
+
+      <div className="nav-session">
+        {sesion ? (
+          <>
+            <span>
+              {sesion.nombre} · {sesion.rol}
+            </span>
+
+            <button
+              className="button button-outline nav-button"
+              onClick={salir}
+            >
+              Salir
+            </button>
+          </>
+        ) : (
+          <Link className="button nav-button" to="/login">
+            Iniciar sesión
+          </Link>
+        )}
+      </div>
+    </header>
+  )
+}
